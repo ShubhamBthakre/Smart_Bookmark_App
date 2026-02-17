@@ -1,21 +1,26 @@
 "use client";
 
-import { supabase } from "@/lib/supabaseClient";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { authService } from "@/api_services/authService";
 import Header from "@/components/Header";
 
 export default function LoginPage() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.push("/bookmarks");
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/bookmarks`,
-        },
-      });
+      await authService.signInWithGoogle(`${window.location.origin}/bookmarks`);
     } catch (error) {
       console.error("Login error:", error);
       setLoading(false);

@@ -1,25 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/hooks/useAuth";
 import Header from "./components/Header";
 
 export default function Home() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.push("/bookmarks");
-      } else {
-        setLoading(false);
-      }
-    };
-    checkSession();
-  }, [router]);
+    if (!loading && isAuthenticated) {
+      router.push("/bookmarks");
+    }
+  }, [isAuthenticated, loading, router]);
 
   if (loading) {
     return (

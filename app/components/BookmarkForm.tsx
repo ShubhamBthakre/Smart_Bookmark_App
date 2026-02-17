@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { bookmarkService } from "@/api_services/bookmarkService";
+import { useAuth } from "@/hooks/useAuth";
+
+import Button from "./form-fields/Button";
+import Input from "./form-fields/Input";
 
 interface BookmarkFormProps {
   isOpen: boolean;
@@ -10,7 +14,6 @@ interface BookmarkFormProps {
   editingId?: string | null;
   editingData?: { url: string; title: string } | null;
 }
-
 export default function BookmarkForm({
   isOpen,
   onClose,
@@ -18,6 +21,7 @@ export default function BookmarkForm({
   editingId,
   editingData,
 }: BookmarkFormProps) {
+  const { user } = useAuth();
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,36 +59,16 @@ export default function BookmarkForm({
     setLoading(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       if (!user) {
-        setError("You must be logged in to add bookmarks.");
+        setError("You must be logged in to save bookmarks.");
         setLoading(false);
         return;
       }
 
       if (editingId) {
-        // Update existing bookmark
-        const { error } = await supabase
-          .from("bookmarks")
-          .update({
-            url: url.trim(),
-            title: title.trim(),
-          })
-          .eq("id", editingId);
-
-        if (error) throw error;
+        await bookmarkService.updateBookmark(editingId, url, title);
       } else {
-        // Create new bookmark
-        const { error } = await supabase.from("bookmarks").insert({
-          url: url.trim(),
-          title: title.trim(),
-          user_id: user.id,
-        });
-
-        if (error) throw error;
+        await bookmarkService.addBookmark(url, title, user.id);
       }
 
       setUrl("");
@@ -121,9 +105,12 @@ export default function BookmarkForm({
           <h2 className="text-xl font-bold text-gray-900">
             {editingId ? "Edit Bookmark" : "Add New Bookmark"}
           </h2>
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            size="sm"
+            className="p-1 min-h-0 shadow-none border-none"
+            aria-label="Close modal"
           >
             <svg
               className="w-6 h-6"
@@ -138,7 +125,7 @@ export default function BookmarkForm({
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-          </button>
+          </Button>
         </div>
 
         {error && (
@@ -161,58 +148,44 @@ export default function BookmarkForm({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="url"
-              className="block text-gray-700 font-medium mb-2 text-sm"
-            >
-              URL
-            </label>
-            <input
-              id="url"
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://example.com"
-              disabled={loading}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-          </div>
+          <Input
+            label="URL"
+            id="url"
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com"
+            disabled={loading}
+          />
 
-          <div>
-            <label
-              htmlFor="title"
-              className="block text-gray-700 font-medium mb-2 text-sm"
-            >
-              Title
-            </label>
-            <input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="My Favorite Website"
-              disabled={loading}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-          </div>
+          <Input
+            label="Title"
+            id="title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="My Favorite Website"
+            disabled={loading}
+          />
 
           <div className="flex gap-3 pt-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200 disabled:opacity-50"
+              fullWidth
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:shadow-md hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary"
+              isLoading={loading}
+              fullWidth
             >
-              {loading ? "Saving..." : editingId ? "Update" : "Add"}
-            </button>
+              {editingId ? "Update" : "Add"}
+            </Button>
           </div>
         </form>
       </div>
