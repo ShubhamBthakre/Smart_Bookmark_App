@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { bookmarkService } from "@/api_services/bookmarkService";
 import BookmarkForm from "./BookmarkForm";
@@ -41,7 +41,7 @@ export default function BookmarkList({
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Fetch bookmarks with pagination and search from backend
-  const fetchBookmarks = async (page: number, query: string = "") => {
+  const fetchBookmarks = useCallback(async (page: number, query: string = "") => {
     setLoading(true);
     try {
       const { data, count } = await bookmarkService.getBookmarks(page, ITEMS_PER_PAGE, query);
@@ -52,7 +52,7 @@ export default function BookmarkList({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Fetch bookmarks when page, debounced search query, or refresh trigger changes
   useEffect(() => {
@@ -74,6 +74,7 @@ export default function BookmarkList({
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
+          console.log("Realtime event received:", payload.eventType);
           if (
             payload.eventType === "INSERT" ||
             payload.eventType === "DELETE" ||
@@ -84,12 +85,14 @@ export default function BookmarkList({
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentPage, debouncedSearchQuery, user?.id]);
+  }, [user?.id, fetchBookmarks, currentPage, debouncedSearchQuery]);
 
   const handleEdit = (bookmark: Bookmark) => {
     setEditingId(bookmark.id);
