@@ -9,6 +9,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/hooks/useAuth";
 import Button from "./form-fields/Button";
 import Input from "./form-fields/Input";
+import ConfirmModal from "./form-fields/ConfirmModal";
 
 interface BookmarkListProps {
   refreshTrigger?: number;
@@ -34,6 +35,8 @@ export default function BookmarkList({
     url: string;
     title: string;
   } | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [bookmarkToDelete, setBookmarkToDelete] = useState<string | null>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
@@ -94,13 +97,20 @@ export default function BookmarkList({
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this bookmark?")) return;
+  const handleDelete = (id: string) => {
+    setBookmarkToDelete(id);
+    setDeleteModalOpen(true);
+  };
 
-    setDeletingId(id);
+  const executeDelete = async () => {
+    if (!bookmarkToDelete) return;
+
+    setDeletingId(bookmarkToDelete);
     try {
-      await bookmarkService.deleteBookmark(id);
+      await bookmarkService.deleteBookmark(bookmarkToDelete);
       onDelete?.();
+      setDeleteModalOpen(false);
+      setBookmarkToDelete(null);
     } catch (err) {
       console.error("Delete failed:", err);
       alert("Failed to delete bookmark");
@@ -340,6 +350,17 @@ export default function BookmarkList({
         onSuccess={handleFormSuccess}
         editingId={editingId}
         editingData={editingData}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={executeDelete}
+        title="Delete Bookmark"
+        message="Are you sure you want to delete this bookmark? This action cannot be undone."
+        confirmLabel="Delete"
+        isLoading={deletingId !== null}
       />
     </div>
   );
